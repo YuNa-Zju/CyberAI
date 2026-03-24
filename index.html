@@ -234,7 +234,7 @@
         z-index: 30;
         pointer-events: auto;
         max-width: 90%;
-        width: 500px;
+        width: 550px;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
         backdrop-filter: blur(10px);
       }
@@ -262,6 +262,7 @@
         margin-bottom: 15px;
         width: 100%;
         justify-content: center;
+        flex-wrap: wrap;
       }
       .cyber-btn {
         flex: 1;
@@ -275,7 +276,7 @@
         cursor: pointer;
         transition: all 0.2s;
         border-radius: 8px;
-        width: 100%;
+        min-width: 120px;
       }
       .cyber-btn:hover {
         background: #fff;
@@ -294,6 +295,15 @@
         gap: 30px;
         align-items: stretch;
         text-align: left;
+        max-height: 85vh; /* 限制整个面板在极小屏幕下不过长 */
+        overflow-y: auto; /* 增加整体纵向滚动，防止手机端内容超出面板被截断 */
+      }
+      #main-menu::-webkit-scrollbar {
+        width: 4px;
+      }
+      #main-menu::-webkit-scrollbar-thumb {
+        background: rgba(8, 247, 254, 0.3);
+        border-radius: 4px;
       }
       .menu-col-left {
         flex: 1.2;
@@ -317,13 +327,22 @@
         margin-bottom: 15px;
         font-weight: bold;
       }
+
+      /* 排行榜滚动条隐藏与高度自适应 */
       .leaderboard-list {
         list-style: none;
         padding: 0;
         margin: 0;
         overflow-y: auto;
-        max-height: 280px;
+        flex: 1;
+        max-height: 360px; /* 【新增】高度限制，防止获取过多数据撑爆主页 */
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
       }
+      .leaderboard-list::-webkit-scrollbar {
+        display: none; /* Safari and Chrome */
+      }
+
       .leaderboard-item {
         display: flex;
         justify-content: space-between;
@@ -509,8 +528,8 @@
           margin-bottom: 15px;
         }
         .cyber-btn {
-          font-size: 16px;
-          padding: 12px 20px;
+          font-size: 14px;
+          padding: 10px 15px;
         }
         .upgrade-card {
           padding: 10px;
@@ -541,15 +560,21 @@
         #main-menu {
           flex-direction: column;
           gap: 15px;
+          justify-content: flex-start;
+        }
+        .menu-col-left,
+        .menu-col-right {
+          flex: none; /* 取消 flex 自动缩缩，防止背景框被压扁导致列表溢出 */
         }
         .leaderboard-list {
-          max-height: 150px;
+          max-height: 250px;
+          min-height: 150px;
+          flex: none;
         }
       }
     </style>
   </head>
   <body>
-    <!-- 📂 [View 模块] (HTML DOM 结构) -->
     <canvas id="gameCanvas"></canvas>
     <div id="joystick-zone"></div>
     <div
@@ -621,32 +646,73 @@
         <div style="font-size: 45px; margin-bottom: 15px; text-align: center">
           🥸 🤝 🤖
         </div>
-        <p class="lore">
-          • <b>极致割草体验</b>：前期火力充沛，体验无双割草；阶段 3
-          之后难度急剧上升！<br />
-          • <b>主动战技</b>：通过<b>攻击频率</b>积累蓝条。按
-          <b>空格(SPACE)</b> 释放冰壶阵<span style="color: var(--cyan)"
-            >清除全屏弹幕</span
-          >！<br />
-          • <b>无敌护盾</b>：拾取
-          <span style="color: var(--cyan)">🛡️</span>
-          获得10秒免伤，哪怕是秒杀机制也能硬扛！<br />
+        <p class="lore" style="font-size: 13px">
+          •
+          <b>流派系统</b
+          >：选择适合你的流派，搭配不同的基础属性和终极战技！<br />
+          • <b>终极战技</b>：通过攻击命中和击杀积累蓝条。按
+          <b>空格(SPACE)</b> 释放大招！<br />
+          • <b>护盾与清场</b>：拾取
+          <span style="color: var(--cyan)">🛡️</span> 获得10秒免伤；轨道球
+          <span style="color: var(--cyan)">🪐</span>
+          现可直接切碎敌方子弹。<br />
           • <b>【危险】阶段5：系统垃圾回收(GC)</b>：<br />
           突破阶段5后，系统将派出巨大的
           <span style="color: var(--red)">🗑️</span>
-          无差别删除全图代码，触碰即死！<br /><br />
-          <strong>操作：</strong>键盘 WASD 移动，SPACE 大招。P 暂停。
+          无差别删除全图代码，触碰即死！<br />
         </p>
+        <div
+          class="hud-text"
+          style="text-align: center; color: var(--yellow); margin-bottom: 10px"
+        >
+          👇 请选择你的意识载体流派 👇
+        </div>
         <div class="btn-group">
           <button
             class="cyber-btn"
-            id="start-btn"
-            onclick="initGame(event)"
-            ontouchstart="initGame(event)"
+            style="
+              background: rgba(8, 247, 254, 0.15);
+              border-color: var(--cyan);
+            "
+            onclick="initGame(event, 'ranged')"
           >
-            连接意识 (START)
+            🔫 狙击流<br /><span style="font-size: 12px; font-weight: normal"
+              >大招：冰壶阵(仅消弹)</span
+            >
+          </button>
+          <button
+            class="cyber-btn"
+            style="
+              background: rgba(254, 83, 187, 0.15);
+              border-color: var(--pink);
+            "
+            onclick="initGame(event, 'melee')"
+          >
+            🗡️ 狂战流<br /><span style="font-size: 12px; font-weight: normal"
+              >大招：剑刃风暴</span
+            >
+          </button>
+          <button
+            class="cyber-btn"
+            style="
+              background: rgba(0, 255, 65, 0.15);
+              border-color: var(--green);
+            "
+            onclick="initGame(event, 'summoner')"
+          >
+            🤖 召唤流<br /><span style="font-size: 12px; font-weight: normal"
+              >大招：分身投影</span
+            >
           </button>
         </div>
+        <button
+          class="cyber-btn"
+          id="load-btn"
+          onclick="loadGame(event)"
+          style="background: rgba(255, 255, 255, 0.1); margin-top: 5px"
+        >
+          📂 继承上次的存档记录
+        </button>
       </div>
       <div class="menu-col-right">
         <div class="leaderboard-title">🏆 荣誉殿堂</div>
@@ -762,6 +828,7 @@
       /* ======================================================
        * 📂 [Config 模块] (全局配置与状态)
        * ====================================================== */
+
       const isTouchDevice =
         "ontouchstart" in window || navigator.maxTouchPoints > 0;
       const joystickZone = document.getElementById("joystick-zone");
@@ -780,6 +847,7 @@
         white: "#ffffff",
         purple: "#b026ff",
         slime: "#6bba2f",
+        orange: "#ff9800",
       };
 
       const mainMenu = document.getElementById("main-menu");
@@ -811,6 +879,8 @@
       let currentPhase = 1;
       let bossActive = false,
         cutsceneTimer = 0;
+      let gcWarningTimer = 0,
+        gcWarningTriggered = false;
       let nextBossSpawnTime = 90;
       let nextBuffSpawnTime = 15;
       let nextStoneSpawnTime = 120;
@@ -822,6 +892,8 @@
         enemyBullets = [],
         vomitBullets = [],
         curlingStones = [];
+      let swordAuras = [],
+        clones = [];
       let particles = [],
         expGems = [],
         items = [],
@@ -853,105 +925,8 @@
         deltaY: 0,
       };
 
-      function togglePause(e) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if (gameState === "PLAYING") {
-          gameState = "PAUSED";
-          pauseMenu.classList.remove("hidden");
-        } else if (gameState === "PAUSED") {
-          gameState = "PLAYING";
-          pauseMenu.classList.add("hidden");
-          lastTime = performance.now();
-        }
-      }
-
-      function triggerUltBtn(e) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if (player && gameState === "PLAYING") player.useUltimate();
-      }
-
       /* ======================================================
-       * 📂 [Save / Load 模块] (LocalStorage存取)
-       * ====================================================== */
-      function saveGame(e, silent = false) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if (!player) return;
-        const state = {
-          player: {
-            maxHp: player.maxHp,
-            hp: player.hp,
-            speed: player.speed,
-            level: player.level,
-            exp: player.exp,
-            maxExp: player.maxExp,
-            score: player.score,
-            fireCooldown: player.fireCooldown,
-            bulletDamage: player.bulletDamage,
-            bulletSizeMult: player.bulletSizeMult,
-            multiShot: player.multiShot,
-            pierce: player.pierce,
-            pickupRadius: player.pickupRadius,
-            expMultiplier: player.expMultiplier,
-            critChance: player.critChance,
-            vampChance: player.vampChance,
-            mpMultiplier: player.mpMultiplier,
-            orbitalCount: player.orbitals.length,
-            thornsDamage: player.thornsDamage,
-          },
-          currentPhase,
-          gameTime,
-          nextBossSpawnTime,
-          nextBuffSpawnTime,
-          nextStoneSpawnTime,
-        };
-        localStorage.setItem("cyber_save", JSON.stringify(state));
-        if (!silent) alert("💾 游戏进度已成功保存！");
-      }
-
-      function loadGame(e) {
-        if (e) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        const stateStr = localStorage.getItem("cyber_save");
-        if (!stateStr) return alert("❌ 没有找到任何存档！");
-
-        try {
-          const state = JSON.parse(stateStr);
-          initGame(null, true);
-
-          Object.assign(player, state.player);
-          player.orbitals = [];
-          for (let i = 0; i < state.player.orbitalCount; i++)
-            player.addOrbital();
-
-          currentPhase = state.currentPhase;
-          gameTime = state.gameTime;
-          nextBossSpawnTime = state.nextBossSpawnTime;
-          nextBuffSpawnTime = state.nextBuffSpawnTime;
-          nextStoneSpawnTime = state.nextStoneSpawnTime;
-
-          if (currentPhase < 5) gcEntity = null;
-
-          updateHUD();
-          alert("📂 进度读取成功，准备战斗！");
-          togglePause();
-        } catch (err) {
-          alert("❌ 存档损坏，无法读取！");
-        }
-      }
-
-      /* ======================================================
-       * 📂 [Utils 模块] (核心难度引擎与数学算法)
+       * 📂 [Utils 模块] (核心算法与通用函数)
        * ====================================================== */
       function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -989,6 +964,120 @@
           return true;
         }
         return false;
+      }
+
+      function togglePause(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (gameState === "PLAYING") {
+          gameState = "PAUSED";
+          pauseMenu.classList.remove("hidden");
+        } else if (gameState === "PAUSED") {
+          gameState = "PLAYING";
+          pauseMenu.classList.add("hidden");
+          lastTime = performance.now();
+        }
+      }
+
+      function triggerUltBtn(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (player && gameState === "PLAYING") player.useUltimate();
+      }
+
+      /* ======================================================
+       * 📂 [Save / Load 模块] (LocalStorage存取)
+       * ====================================================== */
+      function saveGame(e, silent = false) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (!player) return;
+        const state = {
+          player: {
+            classType: player.classType,
+            maxHp: player.maxHp,
+            hp: player.hp,
+            speed: player.speed,
+            level: player.level,
+            exp: player.exp,
+            maxExp: player.maxExp,
+            score: player.score,
+            fireCooldown: player.fireCooldown,
+            bulletDamage: player.bulletDamage,
+            bulletSizeMult: player.bulletSizeMult,
+            multiShot: player.multiShot,
+            pierce: player.pierce,
+            bulletLife: player.bulletLife,
+            pickupRadius: player.pickupRadius,
+            expMultiplier: player.expMultiplier,
+            critChance: player.critChance,
+            vampChance: player.vampChance,
+            mpMultiplier: player.mpMultiplier,
+            orbitalCount: player.orbitals.length,
+          },
+          petCount: pets.length, // 【修改点】保存当前小机器人的数量
+          currentPhase,
+          gameTime,
+          nextBossSpawnTime,
+          nextBuffSpawnTime,
+          gcWarningTriggered,
+        };
+        localStorage.setItem("cyber_save", JSON.stringify(state));
+        if (!silent) alert("💾 游戏进度已成功保存！");
+      }
+
+      function loadGame(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const stateStr = localStorage.getItem("cyber_save");
+        if (!stateStr) return alert("❌ 没有找到任何存档！");
+
+        try {
+          const state = JSON.parse(stateStr);
+
+          player = new Player(state.player.classType || "ranged");
+          initGame(null, state.player.classType, true);
+
+          Object.assign(player, state.player);
+          player.orbitals = [];
+          for (let i = 0; i < state.player.orbitalCount; i++)
+            player.addOrbital();
+
+          // 【修改点】根据存下来的数量重新生成小机器人宠物
+          pets = [];
+          const petCount = state.petCount || 0;
+          for (let i = 0; i < petCount; i++) {
+            pets.push(new Pet(player));
+          }
+
+          currentPhase = state.currentPhase;
+          gameTime = state.gameTime;
+          nextBossSpawnTime = state.nextBossSpawnTime;
+          nextBuffSpawnTime = state.nextBuffSpawnTime;
+          gcWarningTriggered = state.gcWarningTriggered || false;
+
+          if (currentPhase < 5) gcEntity = null;
+
+          updateHUD();
+          alert("📂 进度读取成功，准备战斗！");
+
+          pauseMenu.classList.add("hidden");
+          mainMenu.classList.add("hidden");
+          gameState = "PLAYING";
+          lastTime = performance.now();
+          requestAnimationFrame(gameLoop);
+        } catch (err) {
+          console.error(err);
+          alert("❌ 存档损坏，无法读取！");
+        }
       }
 
       /* ======================================================
@@ -1284,6 +1373,163 @@
         }
       }
 
+      class SwordAura {
+        constructor(owner, index, total) {
+          this.owner = owner;
+          this.index = index;
+          this.total = total;
+          this.angleOffset = ((Math.PI * 2) / total) * index;
+          this.radius = 25;
+          this.damage = 80;
+          this.isDead = false;
+          this.x = owner.x;
+          this.y = owner.y;
+          this.hitCooldowns = new Map();
+        }
+        draw() {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angleOffset + gameTime * 10);
+          ctx.font = "45px 'Segoe UI Emoji', Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("🗡️", 0, 0);
+          ctx.restore();
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(254, 83, 187, 0.8)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        update() {
+          const rotSpeed = 8;
+          const dist = 140 + Math.sin(gameTime * 5) * 30;
+          this.angleOffset += TIME_STEP * rotSpeed;
+          this.x = this.owner.x + Math.cos(this.angleOffset) * dist;
+          this.y = this.owner.y + Math.sin(this.angleOffset) * dist;
+
+          if (this.owner.damageBuffTimer <= 0) {
+            this.isDead = true;
+            return;
+          }
+
+          for (let [enemy, cd] of this.hitCooldowns.entries()) {
+            if (cd <= 0 || enemy.isDead) this.hitCooldowns.delete(enemy);
+            else this.hitCooldowns.set(enemy, cd - 1);
+          }
+
+          let targetList = theBoss ? [theBoss, ...enemies] : enemies;
+          for (let e of targetList) {
+            if (e.isDead || this.hitCooldowns.has(e)) continue;
+            let maxDist = this.radius + e.radius;
+            let dx = this.x - e.x,
+              dy = this.y - e.y;
+            if (Math.abs(dx) > maxDist || Math.abs(dy) > maxDist) continue;
+
+            if (dx * dx + dy * dy < maxDist * maxDist) {
+              player.onHitEnemy(false, e === theBoss);
+              e.takeDamage(this.damage, this.x, this.y, true);
+              this.hitCooldowns.set(e, 15);
+            }
+          }
+          enemyBullets.forEach((eb) => {
+            if (
+              !eb.isDead &&
+              distSq(this.x, this.y, eb.x, eb.y) <
+                (this.radius + eb.radius) ** 2
+            )
+              eb.isDead = true;
+          });
+          vomitBullets.forEach((vb) => {
+            if (
+              !vb.isDead &&
+              distSq(this.x, this.y, vb.x, vb.y) <
+                (this.radius + vb.radius) ** 2
+            )
+              vb.isDead = true;
+          });
+        }
+      }
+
+      class Clone {
+        constructor(x, y, duration) {
+          this.x = x;
+          this.y = y;
+          this.radius = 20;
+          this.life = duration;
+          this.isDead = false;
+          this.fireCooldown = 15;
+          this.currentCooldown = 0;
+        }
+        draw() {
+          ctx.font = "34px 'Segoe UI Emoji', Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.globalAlpha = Math.min(1, this.life / 60);
+          ctx.fillText("👥", this.x, this.y + 2);
+
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius + 10, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(0, 255, 65, 0.5)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        }
+        update() {
+          this.life--;
+          if (this.life <= 0) {
+            this.isDead = true;
+            return;
+          }
+
+          const dSq = distSq(this.x, this.y, player.x, player.y);
+          if (dSq > 10000) {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            this.x += Math.cos(angle) * 3;
+            this.y += Math.sin(angle) * 3;
+          }
+
+          if (this.currentCooldown > 0) this.currentCooldown--;
+          else {
+            let nearestEnemy = null,
+              minDistSq = Infinity;
+            let targetList = theBoss ? [theBoss, ...enemies] : enemies;
+            for (let e of targetList) {
+              if (e.isDead) continue;
+              const dSq2 = distSq(e.x, e.y, this.x, this.y);
+              if (dSq2 < minDistSq) {
+                minDistSq = dSq2;
+                nearestEnemy = e;
+              }
+            }
+            if (nearestEnemy && minDistSq < 640000) {
+              this.currentCooldown = this.fireCooldown;
+              const angle = Math.atan2(
+                nearestEnemy.y - this.y,
+                nearestEnemy.x - this.x,
+              );
+              for (let i = -1; i <= 1; i++) {
+                let spreadAngle = angle + i * 0.15;
+                bullets.push(
+                  new Bullet(
+                    this.x,
+                    this.y,
+                    Math.cos(spreadAngle) * 14,
+                    Math.sin(spreadAngle) * 14,
+                    player.bulletDamage * 0.8,
+                    6,
+                    1,
+                    COLORS.green,
+                    false,
+                    60,
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+
       class GarbageCollector {
         constructor(x, y) {
           this.x = x;
@@ -1406,10 +1652,12 @@
           let targetList = theBoss ? [theBoss, ...enemies] : enemies;
           for (let e of targetList) {
             if (e.isDead) continue;
-            if (
-              distSq(this.x, this.y, e.x, e.y) <
-              (this.radius + e.radius) ** 2
-            ) {
+            let dx = this.x - e.x,
+              dy = this.y - e.y;
+            let maxDist = this.radius + e.radius;
+            if (Math.abs(dx) > maxDist || Math.abs(dy) > maxDist) continue;
+
+            if (dx * dx + dy * dy < maxDist * maxDist) {
               let currentDamage =
                 player.damageBuffTimer > 0 ? this.damage * 2.0 : this.damage;
               player.onHitEnemy(false, e === theBoss);
@@ -1456,26 +1704,15 @@
       }
 
       class Player {
-        constructor() {
+        constructor(classType) {
+          this.classType = classType || "ranged";
           this.x = 0;
           this.y = 0;
           this.radius = 20;
-          this.maxHp = 100;
-          this.hp = this.maxHp;
-
-          this.speed = 3.0;
           this.level = 1;
           this.exp = 0;
           this.maxExp = 10;
           this.score = 0;
-          this.fireCooldown = 35;
-          this.currentCooldown = 0;
-          this.bulletDamage = 40;
-          this.bulletSpeed = 14;
-          this.bulletSizeMult = 1.0;
-          this.multiShot = 1;
-          this.pierce = 1;
-
           this.pickupRadius = 90;
           this.expMultiplier = 1.0;
           this.critChance = 0.0;
@@ -1487,21 +1724,57 @@
           this.damageBuffTimer = 0;
           this.inTrap = false;
           this.trapTick = 0;
-
           this.shieldBuffTimer = 0;
           this.vampCooldown = 0;
-
           this.mp = 0;
           this.maxMp = 100;
           this.mpMultiplier = 1.0;
+
+          if (this.classType === "ranged") {
+            this.maxHp = 100;
+            this.hp = this.maxHp;
+            this.speed = 3.0;
+            this.fireCooldown = 35;
+            this.bulletDamage = 40;
+            this.bulletSpeed = 16;
+            this.bulletSizeMult = 1.0;
+            this.multiShot = 1;
+            this.pierce = 1;
+            this.bulletLife = 90;
+          } else if (this.classType === "melee") {
+            this.maxHp = 150;
+            this.hp = this.maxHp;
+            this.speed = 3.8;
+            this.fireCooldown = 20;
+            this.bulletDamage = 50;
+            this.bulletSpeed = 20;
+            this.bulletSizeMult = 1.5;
+            this.multiShot = 1;
+            this.pierce = 5;
+            this.bulletLife = 12;
+          } else if (this.classType === "summoner") {
+            this.maxHp = 100;
+            this.hp = this.maxHp;
+            this.speed = 2.8;
+            this.fireCooldown = 45;
+            this.bulletDamage = 20;
+            this.bulletSpeed = 12;
+            this.bulletSizeMult = 1.0;
+            this.multiShot = 1;
+            this.pierce = 1;
+            this.bulletLife = 90;
+
+            pets.push(new Pet(this));
+          }
+          this.currentCooldown = 0;
         }
         addOrbital() {
           this.orbitals.push(new Orbital(this, this.orbitals.length));
         }
 
         onHitEnemy(isKill, isBoss) {
-          let baseGain = isKill ? 1.5 : 0.2;
-          if (isBoss) baseGain = 0.5;
+          let baseGain = isKill ? 2.5 : 0.4;
+          if (isBoss) baseGain = 0.8;
 
           let penalty = Math.pow(1.1, currentPhase - 1);
           this.mp = Math.min(
@@ -1523,32 +1796,59 @@
         useUltimate() {
           if (this.mp >= this.maxMp) {
             this.mp = 0;
-            this.damageBuffTimer = 8;
 
-            for (let i = 0; i < 12; i++) {
-              const angle = ((Math.PI * 2) / 12) * i;
-              curlingStones.push(
-                new CurlingStone(
+            if (this.classType === "ranged") {
+              this.damageBuffTimer = 5;
+              for (let i = 0; i < 8; i++) {
+                const angle = ((Math.PI * 2) / 8) * i;
+                curlingStones.push(
+                  new CurlingStone(
+                    this.x,
+                    this.y,
+                    Math.cos(angle) * 12,
+                    Math.sin(angle) * 12,
+                  ),
+                );
+              }
+              floatingTexts.push(
+                new FloatingText(
+                  "✨ 动能矩阵!",
                   this.x,
-                  this.y,
-                  Math.cos(angle) * (15 + Math.random() * 5),
-                  Math.sin(angle) * (15 + Math.random() * 5),
+                  this.y - 50,
+                  COLORS.cyan,
+                  true,
+                ),
+              );
+            } else if (this.classType === "melee") {
+              this.damageBuffTimer = 6;
+              for (let i = 0; i < 4; i++) {
+                swordAuras.push(new SwordAura(this, i, 4));
+              }
+              floatingTexts.push(
+                new FloatingText(
+                  "✨ 剑刃风暴!",
+                  this.x,
+                  this.y - 50,
+                  COLORS.pink,
+                  true,
+                ),
+              );
+            } else if (this.classType === "summoner") {
+              this.damageBuffTimer = 5;
+              clones.push(new Clone(this.x, this.y, 600));
+              floatingTexts.push(
+                new FloatingText(
+                  "✨ 虚空投影!",
+                  this.x,
+                  this.y - 50,
+                  COLORS.green,
+                  true,
                 ),
               );
             }
 
             ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            floatingTexts.push(
-              new FloatingText(
-                "✨ 净空矩阵!",
-                this.x,
-                this.y - 50,
-                COLORS.cyan,
-                true,
-              ),
-            );
             updateHUD();
           }
         }
@@ -1678,7 +1978,9 @@
                 ? COLORS.yellow
                 : this.damageBuffTimer > 0
                   ? COLORS.pink
-                  : COLORS.white;
+                  : COLORS.cyan;
+              if (this.classType === "melee") color = COLORS.pink;
+              if (this.classType === "summoner") color = COLORS.green;
               const size = (isCrit ? 8 : 6) * this.bulletSizeMult;
               bullets.push(
                 new Bullet(
@@ -1691,6 +1993,7 @@
                   this.pierce,
                   color,
                   isCrit,
+                  this.bulletLife,
                 ),
               );
             }
@@ -1753,7 +2056,7 @@
           this.offsetY = (Math.random() - 0.5) * 100;
           this.radius = 12;
           this.currentCooldown = 0;
-          this.bulletSpeed = 12;
+          this.bulletSpeed = 14;
         }
         draw() {
           ctx.font = "20px 'Segoe UI Emoji', Arial";
@@ -1780,21 +2083,24 @@
             minDistSq = Infinity;
           for (let e of targetList) {
             if (e.isDead) continue;
-            const dSq = distSq(this.x, this.y, e.x, e.y);
+            let dx = this.x - e.x,
+              dy = this.y - e.y;
+            let maxDist = 600;
+            if (Math.abs(dx) > maxDist || Math.abs(dy) > maxDist) continue;
+            const dSq = dx * dx + dy * dy;
             if (dSq < minDistSq) {
               minDistSq = dSq;
               nearestEnemy = e;
             }
           }
           if (nearestEnemy && minDistSq < 360000) {
-            // 🤖 宠物射速和伤害随主角动态成长
             let dynamicCooldown = Math.max(10, player.fireCooldown * 1.2);
             this.currentCooldown = dynamicCooldown;
             const angle = Math.atan2(
               nearestEnemy.y - this.y,
               nearestEnemy.x - this.x,
             );
-            let baseDamage = player.bulletDamage * 0.6 + 10;
+            let baseDamage = player.bulletDamage * 0.8 + 10;
             let currentDamage =
               player.damageBuffTimer > 0 ? baseDamage * 2.0 : baseDamage;
             bullets.push(
@@ -1808,6 +2114,7 @@
                 1,
                 COLORS.green,
                 false,
+                90,
               ),
             );
           }
@@ -1826,14 +2133,16 @@
             1 + (diffScale - 1) * 0.5 + gameTime / 300,
             2.5,
           );
-
           const timeScale = diffScale + gameTime / 240;
 
           const rand = Math.random();
-          if (rand < 0.15) this.type = 2;
-          else if (rand < 0.35) this.type = 1;
-          else if (rand < 0.5) this.type = 3;
-          else if (rand < 0.6) this.type = 4;
+          if (currentPhase >= 10 && rand < 0.1) this.type = 5;
+          // 【调整】削弱 UFO (type=6) 出现概率，原本是 < 0.2 (10%概率)，现在改为 0.13 (3%概率)，使其更像稀有精英
+          else if (currentPhase >= 10 && rand < 0.13) this.type = 6;
+          else if (rand < 0.3) this.type = 2;
+          else if (rand < 0.5) this.type = 1;
+          else if (rand < 0.65) this.type = 3;
+          else if (rand < 0.8) this.type = 4;
           else this.type = 0;
 
           this.currentCooldown = Math.random() * 60;
@@ -1858,6 +2167,19 @@
             this.hp = 35 * timeScale;
             this.color = COLORS.slime;
             this.exp = 5;
+          } else if (this.type === 5) {
+            this.speed = 2.5 * baseSpeedMult;
+            this.hp = 200 * timeScale;
+            this.color = COLORS.red;
+            this.radius = 35;
+            this.exp = 15;
+          } else if (this.type === 6) {
+            // 【调整】削弱 UFO 属性并改变颜色
+            this.speed = 0.8 * baseSpeedMult; // 移速从 1.0 降低至 0.8
+            this.hp = 120 * timeScale; // 血量从 150 降低至 120
+            this.color = COLORS.orange; // 颜色改为橙色以防与玩家混淆
+            this.radius = 30;
+            this.exp = 15; // 作为精英怪经验略微增加
           } else {
             this.speed = (1.0 + Math.random() * 0.4) * baseSpeedMult;
             this.hp = 20 * timeScale;
@@ -1876,6 +2198,8 @@
           ctx.fillStyle = COLORS.white;
           let emoji = "🤖";
           if (this.type === 4) emoji = "🤢";
+          if (this.type === 5) emoji = "👹";
+          if (this.type === 6) emoji = "🛸";
           ctx.fillText(emoji, this.x, this.y + 4);
 
           if (this.hp < this.maxHp) {
@@ -1935,6 +2259,30 @@
                   );
                 }
               }
+            } else if (this.type === 6) {
+              if (dSq > 250000) {
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+              } else {
+                if (this.currentCooldown > 0) this.currentCooldown--;
+                else {
+                  // 【调整】削弱 UFO 的攻击
+                  this.currentCooldown = 150; // 攻击频率降低（原本90）
+                  for (let i = 0; i < 3; i++) {
+                    // 子弹数降低（原本5）
+                    let spreadAngle = angle + (i - 1) * 0.25;
+                    enemyBullets.push(
+                      new EnemyBullet(
+                        this.x,
+                        this.y,
+                        Math.cos(spreadAngle) * 5.5, // 子弹速度降低（原本7）
+                        Math.sin(spreadAngle) * 5.5,
+                        COLORS.orange, // 子弹颜色改为橙色
+                      ),
+                    );
+                  }
+                }
+              }
             } else {
               this.x += Math.cos(angle) * this.speed;
               this.y += Math.sin(angle) * this.speed;
@@ -1960,7 +2308,8 @@
           if (this.hp <= 0) {
             this.isDead = true;
             createParticles(this.x, this.y, this.color);
-            expGems.push(new ExpGem(this.x, this.y, this.exp));
+            let expScale = Math.pow(1.15, Math.max(0, currentPhase - 2));
+            expGems.push(new ExpGem(this.x, this.y, this.exp * expScale));
             if (Math.random() < 0.02)
               items.push(new HeartItem(this.x, this.y + 10));
             player.onHitEnemy(true, false);
@@ -2155,7 +2504,18 @@
       }
 
       class Bullet {
-        constructor(x, y, vx, vy, damage, size, pierce, color, isCrit) {
+        constructor(
+          x,
+          y,
+          vx,
+          vy,
+          damage,
+          size,
+          pierce,
+          color,
+          isCrit,
+          life = 90,
+        ) {
           this.x = x;
           this.y = y;
           this.vx = vx;
@@ -2167,6 +2527,7 @@
           this.isCrit = isCrit;
           this.hitEnemies = new Set();
           this.isDead = false;
+          this.life = life;
         }
         draw() {
           ctx.beginPath();
@@ -2177,6 +2538,8 @@
         update() {
           this.x += this.vx;
           this.y += this.vy;
+          this.life--;
+          if (this.life <= 0) this.isDead = true;
           if (Math.random() < 0.2)
             particles.push(new Particle(this.x, this.y, this.color, 0.6));
         }
@@ -2211,10 +2574,21 @@
           this.x = x;
           this.y = y;
           this.value = value;
-          this.radius = value > 2 ? 6 : 4;
-          this.color = value > 2 ? COLORS.yellow : COLORS.cyan;
           this.isMoving = false;
           this.isDead = false;
+          if (value < 5) {
+            this.radius = 4;
+            this.color = COLORS.cyan;
+          } else if (value < 15) {
+            this.radius = 6;
+            this.color = COLORS.yellow;
+          } else if (value < 50) {
+            this.radius = 8;
+            this.color = COLORS.orange;
+          } else {
+            this.radius = 10;
+            this.color = COLORS.red;
+          }
         }
         draw() {
           ctx.beginPath();
@@ -2225,6 +2599,12 @@
           ctx.closePath();
           ctx.fillStyle = this.color;
           ctx.fill();
+          if (this.value >= 15) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = this.color;
+            ctx.stroke();
+          }
         }
         update() {
           const dSq = distSq(player.x, player.y, this.x, this.y);
@@ -2444,7 +2824,7 @@
         });
       }
 
-      function initGame(e, isLoading = false) {
+      function initGame(e, classType = "ranged", isLoading = false) {
         if (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -2456,12 +2836,14 @@
         }
 
         if (!isLoading) {
-          player = new Player();
+          player = new Player(classType);
           gameTime = 0;
           currentPhase = 1;
           nextBossSpawnTime = 90;
           nextBuffSpawnTime = 15;
           nextStoneSpawnTime = 120;
+          gcWarningTimer = 0;
+          gcWarningTriggered = false;
         }
 
         pets = [];
@@ -2470,6 +2852,9 @@
         enemyBullets = [];
         vomitBullets = [];
         curlingStones = [];
+        kamikazeBots = [];
+        swordAuras = [];
+        clones = [];
         particles = [];
         expGems = [];
         items = [];
@@ -2753,11 +3138,14 @@
         items.forEach((item) => item.draw());
         expGems.forEach((gem) => gem.draw());
         if (theBoss) theBoss.draw();
+
         curlingStones.forEach((cs) => cs.draw());
+        swordAuras.forEach((sa) => sa.draw());
         vomitBullets.forEach((vb) => vb.draw());
         enemyBullets.forEach((eb) => eb.draw());
         bullets.forEach((b) => b.draw());
         enemies.forEach((e) => e.draw());
+        clones.forEach((c) => c.draw());
         pets.forEach((p) => p.draw());
         player.draw();
         particles.forEach((p) => p.draw());
@@ -2785,6 +3173,30 @@
         if (!lastTime) lastTime = timestamp;
         const dt = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
+
+        if (gameState === "GC_WARNING") {
+          gcWarningTimer += dt;
+          drawBaseGameFrozen();
+          ctx.fillStyle = `rgba(255, 0, 0, ${Math.abs(Math.sin(gcWarningTimer * 5)) * 0.3})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.font = "bold 40px 'ZCOOL QingKe HuangYou', sans-serif";
+          ctx.fillStyle = COLORS.yellow;
+          ctx.textAlign = "center";
+          ctx.fillText(
+            "⚠️ 内存泄漏严重，底层垃圾回收进程启动...",
+            canvas.width / 2,
+            canvas.height / 2,
+          );
+          ctx.font = "80px Arial";
+          ctx.fillText("🗑️ 🧹", canvas.width / 2, canvas.height / 2 + 80);
+
+          if (gcWarningTimer > 4.0) {
+            gameState = "PLAYING";
+            gcEntity = new GarbageCollector(player.x - 1500, player.y);
+          }
+          animationId = requestAnimationFrame(gameLoop);
+          return;
+        }
 
         if (gameState === "CUTSCENE") {
           cutsceneTimer += dt;
@@ -2890,17 +3302,12 @@
           gameTime += TIME_STEP;
           timeDisplay.innerText = formatTime(gameTime);
 
-          if (currentPhase >= 5 && !gcEntity) {
-            gcEntity = new GarbageCollector(player.x - 1500, player.y);
-            floatingTexts.push(
-              new FloatingText(
-                "严重警告：底层垃圾回收进程已启动！",
-                player.x,
-                player.y - 80,
-                COLORS.red,
-                true,
-              ),
-            );
+          if (currentPhase >= 5 && !gcEntity && !gcWarningTriggered) {
+            gameState = "GC_WARNING";
+            gcWarningTriggered = true;
+            gcWarningTimer = 0;
+            animationId = requestAnimationFrame(gameLoop);
+            return;
           }
           if (gcEntity) gcEntity.update();
 
@@ -2948,6 +3355,8 @@
           traps.forEach((t) => t.update());
           tempTraps.forEach((t) => t.update());
           curlingStones.forEach((cs) => cs.update());
+          swordAuras.forEach((sa) => sa.update());
+          clones.forEach((c) => c.update());
 
           player.update();
           pets.forEach((p) => p.update());
@@ -2988,13 +3397,14 @@
             }
           });
 
+          // 冰壶只消弹幕
           curlingStones.forEach((cs) => {
             enemyBullets.forEach((eb) => {
-              if (!eb.isDead && distSq(cs.x, cs.y, eb.x, eb.y) < 1600)
+              if (!eb.isDead && distSq(cs.x, cs.y, eb.x, eb.y) < 2500)
                 eb.isDead = true;
             });
             vomitBullets.forEach((vb) => {
-              if (!vb.isDead && distSq(cs.x, cs.y, vb.x, vb.y) < 1600)
+              if (!vb.isDead && distSq(cs.x, cs.y, vb.x, vb.y) < 2500)
                 vb.isDead = true;
             });
           });
@@ -3139,7 +3549,6 @@
           particles.forEach((p) => p.update());
           floatingTexts.forEach((ft) => ft.update());
 
-          // 批量回收
           tempTraps = tempTraps.filter((t) => !t.isDead);
           items = items.filter((i) => !i.isDead);
           expGems = expGems.filter((g) => !g.isDead);
@@ -3151,6 +3560,8 @@
           floatingTexts = floatingTexts.filter((ft) => !ft.isDead);
           obstacles = obstacles.filter((o) => !o.isDead);
           curlingStones = curlingStones.filter((cs) => !cs.isDead);
+          swordAuras = swordAuras.filter((sa) => !sa.isDead);
+          clones = clones.filter((c) => !c.isDead);
 
           if (particles.length > 250)
             particles = particles.slice(particles.length - 250);
@@ -3247,11 +3658,6 @@
           keys.ArrowRight = false;
         if (code === "Space" || keyCode === 32) keys.Space = false;
       });
-
-      document.getElementById("start-btn").addEventListener("click", initGame);
-      document
-        .getElementById("restart-btn")
-        .addEventListener("click", initGame);
     </script>
   </body>
 </html>

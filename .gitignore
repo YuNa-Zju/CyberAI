@@ -1,1 +1,6 @@
 /target
+.db
+
+/leaderboard.db-shm
+/leaderboard.db-wal
+/leaderboard.db
