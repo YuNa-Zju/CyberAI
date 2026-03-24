@@ -52,7 +52,7 @@ async fn get_scores(
         FROM scores 
         GROUP BY player_name 
         ORDER BY score DESC 
-        LIMIT 10
+        LIMIT 50
         "#
     )
     .fetch_all(&pool)
