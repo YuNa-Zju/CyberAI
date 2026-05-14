@@ -1946,7 +1946,13 @@
         }, 500);
       }
 
-      window.addEventListener("DOMContentLoaded", fetchLeaderboard);
+      if (document.readyState === "loading") {
+        window.addEventListener("DOMContentLoaded", fetchLeaderboard, {
+          once: true,
+        });
+      } else {
+        fetchLeaderboard();
+      }
 
       function spawnBugRain() {
         const count = Math.min(8, 3 + Math.floor((currentPhase - 5) * 0.8));
