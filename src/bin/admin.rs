@@ -9,6 +9,10 @@ async fn main() {
         .connect(db_url)
         .await
         .expect("无法连接到数据库");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("数据库迁移执行失败");
 
     loop {
         println!("\n=========================");
@@ -41,7 +45,7 @@ async fn main() {
 
 async fn view_all_scores(pool: &sqlx::SqlitePool) {
     let records = sqlx::query(
-        "SELECT id, player_name, score, phase, created_at FROM scores ORDER BY score DESC LIMIT 20",
+        "SELECT id, player_name, score, phase, build_history, created_at FROM scores ORDER BY score DESC LIMIT 20",
     )
     .fetch_all(pool)
     .await
@@ -49,8 +53,8 @@ async fn view_all_scores(pool: &sqlx::SqlitePool) {
 
     println!("\n🏆 Top 20 记录:");
     println!(
-        "{:<5} | {:<15} | {:<8} | {:<5} | {}",
-        "ID", "玩家名", "分数", "关卡", "提交时间"
+        "{:<5} | {:<15} | {:<8} | {:<5} | {:<8} | {}",
+        "ID", "玩家名", "分数", "关卡", "加点", "提交时间"
     );
     println!("-------------------------------------------------------------------");
     for row in records {
@@ -58,10 +62,16 @@ async fn view_all_scores(pool: &sqlx::SqlitePool) {
         let name: String = row.get("player_name");
         let score: i64 = row.get("score");
         let phase: i64 = row.get("phase");
+        let build_history: String = row.get("build_history");
         let created_at: String = row.get("created_at");
         println!(
-            "{:<5} | {:<15} | {:<8} | {:<5} | {}",
-            id, name, score, phase, created_at
+            "{:<5} | {:<15} | {:<8} | {:<5} | {:<8} | {}",
+            id,
+            name,
+            score,
+            phase,
+            if build_history == "[]" { "无" } else { "有" },
+            created_at
         );
     }
 }
@@ -74,7 +84,7 @@ async fn view_player_scores(pool: &sqlx::SqlitePool) {
     let name = name.trim();
 
     let records = sqlx::query(
-        "SELECT id, score, phase, created_at FROM scores WHERE player_name = ? ORDER BY score DESC",
+        "SELECT id, score, phase, build_history, created_at FROM scores WHERE player_name = ? ORDER BY score DESC",
     )
     .bind(name)
     .fetch_all(pool)
@@ -86,10 +96,15 @@ async fn view_player_scores(pool: &sqlx::SqlitePool) {
         let id: i64 = row.get("id");
         let score: i64 = row.get("score");
         let phase: i64 = row.get("phase");
+        let build_history: String = row.get("build_history");
         let created_at: String = row.get("created_at");
         println!(
-            "ID: {:<4} | 分数: {:<6} | 关卡: {} | 时间: {}",
-            id, score, phase, created_at
+            "ID: {:<4} | 分数: {:<6} | 关卡: {} | 加点: {} | 时间: {}",
+            id,
+            score,
+            phase,
+            if build_history == "[]" { "无" } else { "有" },
+            created_at
         );
     }
 }

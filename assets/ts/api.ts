@@ -4,6 +4,7 @@ export type ScoreRecord = {
   player_name: string;
   score: number;
   phase: number;
+  build_history: string;
 };
 
 export type SubmitScorePayload = ScoreRecord;
@@ -55,6 +56,8 @@ function normalizeScores(value: unknown): ScoreRecord[] {
         typeof item?.player_name === "string" ? item.player_name : "匿名",
       score: Number.isFinite(Number(item?.score)) ? Number(item.score) : 0,
       phase: Number.isFinite(Number(item?.phase)) ? Number(item.phase) : 1,
+      build_history:
+        typeof item?.build_history === "string" ? item.build_history : "[]",
     }))
     .filter((item) => item.score >= 0);
 }

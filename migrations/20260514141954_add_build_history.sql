@@ -1,0 +1,2 @@
+ALTER TABLE scores
+ADD COLUMN build_history TEXT NOT NULL DEFAULT '[]';

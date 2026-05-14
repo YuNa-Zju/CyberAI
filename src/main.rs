@@ -1,6 +1,6 @@
 use axum::{routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use sqlx::{sqlite::SqlitePoolOptions, FromRow, SqlitePool};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile}; // 依然保留你的前端服务
@@ -10,11 +10,17 @@ struct HealthResponse {
     ok: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, FromRow)]
 struct ScoreRecord {
     player_name: String,
     score: i64,
     phase: i64,
+    #[serde(default = "default_build_history")]
+    build_history: String,
+}
+
+fn default_build_history() -> String {
+    "[]".to_string()
 }
 
 #[tokio::main]
@@ -53,16 +59,23 @@ async fn get_scores(
 ) -> Json<Vec<ScoreRecord>> {
     // 🔥 融合了好友的精髓逻辑：分组去重，取最高分
     // 注意：MAX() 需要使用 as "字段名!" 来向 sqlx 强制解除 Option
-    let scores = sqlx::query_as!(
-        ScoreRecord,
+    let scores = sqlx::query_as::<_, ScoreRecord>(
         r#"
-        SELECT 
-            player_name as "player_name!", 
-            MAX(score) as "score!", 
-            MAX(phase) as "phase!" 
-        FROM scores 
-        GROUP BY player_name 
-        ORDER BY score DESC 
+        SELECT player_name, score, phase, build_history
+        FROM (
+            SELECT
+                player_name,
+                score,
+                phase,
+                build_history,
+                ROW_NUMBER() OVER (
+                    PARTITION BY player_name
+                    ORDER BY score DESC, created_at DESC, id DESC
+                ) AS rank
+            FROM scores
+        )
+        WHERE rank = 1
+        ORDER BY score DESC
         LIMIT 50
         "#
     )
@@ -80,12 +93,13 @@ async fn add_score(
     axum::extract::State(pool): axum::extract::State<SqlitePool>,
     Json(payload): Json<ScoreRecord>,
 ) -> &'static str {
-    let result = sqlx::query!(
-        "INSERT INTO scores (player_name, score, phase) VALUES (?, ?, ?)",
-        payload.player_name,
-        payload.score,
-        payload.phase
+    let result = sqlx::query(
+        "INSERT INTO scores (player_name, score, phase, build_history) VALUES (?, ?, ?, ?)",
     )
+    .bind(payload.player_name)
+    .bind(payload.score)
+    .bind(payload.phase)
+    .bind(payload.build_history)
     .execute(&pool)
     .await;
 

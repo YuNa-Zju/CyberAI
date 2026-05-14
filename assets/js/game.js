@@ -176,6 +176,7 @@
         bugZones = [],
         traps = [],
         tempTraps = [];
+      let buildHistory = [];
       let theBoss = null;
 
       const keys = {
@@ -259,6 +260,7 @@
           nextBuffSpawnTime,
           nextStoneSpawnTime,
           nextBugRainTime,
+          buildHistory,
         };
         localStorage.setItem("cyber_save", JSON.stringify(state));
         if (!silent) alert("💾 游戏进度已成功保存！");
@@ -287,6 +289,9 @@
           nextBuffSpawnTime = state.nextBuffSpawnTime;
           nextStoneSpawnTime = state.nextStoneSpawnTime;
           nextBugRainTime = state.nextBugRainTime || gameTime + 10;
+          buildHistory = Array.isArray(state.buildHistory)
+            ? state.buildHistory
+            : [];
 
           updateHUD();
           alert("📂 进度读取成功，准备战斗！");
@@ -1305,19 +1310,19 @@
           this.x = x;
           this.y = y;
           this.radius = 70;
-          this.maxHp = 4000 * Math.pow(1.5, currentPhase - 1);
+          this.maxHp = 6200 * Math.pow(1.62, currentPhase - 1);
           this.hp = this.maxHp;
 
           this.type = (currentPhase - 1) % 3;
 
           if (this.type === 1) {
-            this.speed = 2.0 + currentPhase * 0.1;
+            this.speed = 2.25 + currentPhase * 0.12;
           } else if (this.type === 2) {
-            this.speed = 0.8 + currentPhase * 0.1;
-            this.maxHp *= 1.5;
+            this.speed = 0.95 + currentPhase * 0.11;
+            this.maxHp *= 1.65;
             this.hp = this.maxHp;
           } else {
-            this.speed = 1.2 + currentPhase * 0.1;
+            this.speed = 1.45 + currentPhase * 0.12;
           }
 
           this.state = 0;
@@ -1366,8 +1371,8 @@
           if (this.type === 0) {
             if (this.timer % 150 === 0) this.state = (this.state + 1) % 2;
             if (this.state === 0) {
-              if (this.timer % 70 === 0) {
-                const bulletsNum = 16 + currentPhase * 4;
+              if (this.timer % 58 === 0) {
+                const bulletsNum = 22 + currentPhase * 5;
                 for (let i = 0; i < bulletsNum; i++) {
                   const angle = ((Math.PI * 2) / bulletsNum) * i;
                   enemyBullets.push(
@@ -1405,8 +1410,8 @@
               }
             }
           } else if (this.type === 1) {
-            if (this.timer % 120 === 0) {
-              this.state = 10;
+            if (this.timer % 100 === 0) {
+              this.state = 12;
             }
             if (this.state > 0 && this.timer % 5 === 0) {
               enemyBullets.push(
@@ -1421,7 +1426,7 @@
               this.state--;
             }
           } else if (this.type === 2) {
-            if (this.timer % 80 === 0) {
+            if (this.timer % 68 === 0) {
               const randTargetX = player.x + (Math.random() - 0.5) * 300;
               const randTargetY = player.y + (Math.random() - 0.5) * 300;
               vomitBullets.push(
@@ -1755,6 +1760,15 @@
               e.preventDefault();
               e.stopPropagation();
             }
+            buildHistory.push({
+              id: opt.id,
+              icon: opt.icon,
+              title: opt.title,
+              desc: opt.desc,
+              level: player.level,
+              phase: currentPhase,
+              time: formatTime(gameTime),
+            });
             opt.apply();
             upgradeMenu.classList.add("hidden");
             gameState = "PLAYING";
@@ -1804,6 +1818,7 @@
         bugZones = [];
         traps = [];
         tempTraps = [];
+        buildHistory = isLoading ? buildHistory : [];
         theBoss = null;
 
         lastTime = performance.now();
@@ -1904,6 +1919,7 @@
                   : index === 2
                     ? "🥉"
                     : `NO.${index + 1}`;
+            li.title = formatBuildHistory(record.build_history);
             li.innerHTML = `<span>${rank} ${record.player_name || "匿名"}</span><span>阶段${record.phase || 1} / ${record.score || 0}分</span>`;
             list.appendChild(li);
           });
@@ -1936,6 +1952,7 @@
               player_name: name,
               score: score,
               phase: phase,
+              build_history: JSON.stringify(buildHistory),
             });
             alert("✅ 成绩记录成功！");
             fetchLeaderboard();
@@ -1976,14 +1993,14 @@
 
         let diffScale = getDifficultyScale(currentPhase);
 
-        let maxEnemies = 30 * diffScale + Math.floor(gameTime / 5);
-        if (maxEnemies > 120) maxEnemies = 120;
+        let maxEnemies = 20 * diffScale + Math.floor(gameTime / 9);
+        if (maxEnemies > 82) maxEnemies = 82;
         if (enemies.length >= maxEnemies) return;
 
-        let baseInterval = 34;
+        let baseInterval = 48;
         let spawnInterval =
-          baseInterval / diffScale - Math.floor(gameTime / 9);
-        if (spawnInterval < 8) spawnInterval = 8;
+          baseInterval / diffScale - Math.floor(gameTime / 15);
+        if (spawnInterval < 13) spawnInterval = 13;
         if (Math.random() > 1 / spawnInterval) return;
 
         const margin = 100;
@@ -2043,6 +2060,30 @@
           .toString()
           .padStart(2, "0");
         return `${m}:${s}`;
+      }
+
+      function formatBuildHistory(rawHistory) {
+        let history = rawHistory;
+        if (typeof rawHistory === "string") {
+          try {
+            history = JSON.parse(rawHistory);
+          } catch {
+            history = [];
+          }
+        }
+        if (!Array.isArray(history) || history.length === 0) {
+          return "暂无加点记录";
+        }
+        return history
+          .map((item, index) => {
+            const level = item.level || index + 2;
+            const phase = item.phase || 1;
+            const time = item.time || "00:00";
+            const icon = item.icon || "✨";
+            const title = item.title || "神秘加点";
+            return `LV${level} 阶段${phase} ${time} ${icon} ${title}`;
+          })
+          .join("\n");
       }
 
       /* ======================================================
@@ -2365,7 +2406,7 @@
               distSq(player.x, player.y, theBoss.x, theBoss.y) <
               (player.radius + theBoss.radius) ** 2
             )
-              player.takeDamage(10);
+              player.takeDamage(16);
           }
 
           vomitBullets.forEach((vb) => vb.update());
