@@ -3,7 +3,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-use tower_http::services::ServeFile; // 依然保留你的单文件前端服务
+use tower_http::services::{ServeDir, ServeFile}; // 依然保留你的前端服务
+
+#[derive(Serialize)]
+struct HealthResponse {
+    ok: bool,
+}
 
 #[derive(Serialize, Deserialize)]
 struct ScoreRecord {
@@ -25,8 +30,10 @@ async fn main() {
         .expect("数据库迁移执行失败");
 
     let app = Router::new()
+        .route("/api/health", get(health))
         .route("/api/scores", get(get_scores).post(add_score))
-        .fallback_service(ServeFile::new("index.html")) // 保持匹配你的 index.html
+        .nest_service("/assets", ServeDir::new("dist/assets"))
+        .fallback_service(ServeFile::new("dist/index.html"))
         .layer(CorsLayer::permissive())
         .with_state(pool);
 
@@ -35,6 +42,10 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn health() -> Json<HealthResponse> {
+    Json(HealthResponse { ok: true })
 }
 
 async fn get_scores(

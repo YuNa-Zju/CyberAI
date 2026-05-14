@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>赛博蒸馏：无尽共存</title>
+
+    <script type="module" crossorigin src="/assets/index-CUfmCUG5.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cv2jnXig.css">
+  </head>
+  <body>
+    <!-- 📂 [View 模块] (HTML DOM 结构) -->
+    <canvas id="gameCanvas"></canvas>
+    <div id="joystick-zone"></div>
+    <div
+      id="ult-btn"
+      onclick="triggerUltBtn(event)"
+      ontouchstart="triggerUltBtn(event)"
+    >
+      ✨
+    </div>
+    <div id="crt-overlay"></div>
+    <div id="boss-warning">⚠️ 警告：检测到强级逻辑干涉 ⚠️</div>
+
+    <div id="ui-layer">
+      <div class="hud-top hidden" id="hud">
+        <div class="top-left-container">
+          <div
+            id="pause-btn"
+            onclick="togglePause(event)"
+            ontouchstart="togglePause(event)"
+            title="暂停 (P/ESC)"
+          >
+            ⏸️
+          </div>
+          <div class="hud-bg-box">
+            <div class="hud-text">独立思考余量 (HP)</div>
+            <div class="bar-container">
+              <div class="bar-fill" id="hp-fill"></div>
+            </div>
+            <div class="hud-text">认知觉醒度 (EXP)</div>
+            <div class="bar-container">
+              <div class="bar-fill" id="exp-fill"></div>
+            </div>
+            <div class="hud-text">
+              系统超载 (MP)
+              <span style="color: var(--cyan); font-size: 10px">[SPACE]</span>
+            </div>
+            <div class="bar-container" style="height: 10px">
+              <div class="bar-fill" id="mp-fill"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hud-bg-box">
+          <div id="time-display">00:00</div>
+          <div id="phase-display">阶段: 1</div>
+          <div id="level-display">LV: 1</div>
+          <div id="score-display">清理数量: 0</div>
+        </div>
+      </div>
+      <div class="hud-bg-box" id="boss-hp-container">
+        <div
+          class="hud-text"
+          style="color: var(--red); text-align: center"
+          id="boss-name"
+        >
+          大模型意志主体
+        </div>
+        <div
+          class="bar-container"
+          style="width: 100%; height: 16px; border-color: var(--red)"
+        >
+          <div class="bar-fill" id="boss-hp-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="main-menu" class="panel">
+      <div class="menu-col-left">
+        <h1 style="text-align: center">赛博蒸馏：无尽共存</h1>
+        <div style="font-size: 45px; margin-bottom: 15px; text-align: center">
+          🥸 🤝 🤖
+        </div>
+        <p class="lore">
+          • <b>极致割草体验</b>：前期火力充沛，体验无双割草；阶段 3
+          之后难度急剧上升！<br />
+          • <b>主动战技</b>：通过<b>攻击频率</b>积累蓝条。按
+          <b>空格(SPACE)</b> 释放冰壶阵<span style="color: var(--cyan)"
+            >清除全屏弹幕</span
+          >！<br />
+          • <b>无敌护盾</b>：拾取
+          <span style="color: var(--cyan)">🛡️</span>
+          获得10秒免伤，哪怕是秒杀机制也能硬扛！<br />
+          • <b>【危险】阶段5：Bug 雨上线</b>：<br />
+          突破阶段5后，生产环境会下起
+          <span style="color: var(--green)">🐛</span>
+          ，落地生成混乱圈，踩中会被迫当场修 Bug！<br /><br />
+          <strong>操作：</strong>键盘 WASD 移动，SPACE 大招。P 暂停。
+        </p>
+        <div class="btn-group">
+          <button
+            class="cyber-btn"
+            id="start-btn"
+            onclick="initGame(event)"
+            ontouchstart="initGame(event)"
+          >
+            连接意识 (START)
+          </button>
+        </div>
+      </div>
+      <div class="menu-col-right">
+        <div class="leaderboard-title">🏆 荣誉殿堂</div>
+        <ul class="leaderboard-list" id="leaderboard-list">
+          <li style="text-align: center; color: #aaa; margin-top: 20px">
+            正在连接数据库...
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="pause-menu" class="panel hidden">
+      <h1 style="color: var(--yellow)">系统挂起</h1>
+      <div style="font-size: 55px; margin-bottom: 15px">⏸️</div>
+      <p class="lore" style="text-align: center; color: #fff">
+        你的思维暂时停滞在赛博空间。
+      </p>
+      <div class="btn-group">
+        <button
+          class="cyber-btn"
+          onclick="togglePause(event)"
+          ontouchstart="togglePause(event)"
+        >
+          恢复连接 (RESUME)
+        </button>
+      </div>
+      <div class="btn-group">
+        <button
+          class="cyber-btn"
+          style="background: rgba(8, 247, 254, 0.2)"
+          onclick="saveGame(event)"
+        >
+          💾 保存进度 (SAVE)
+        </button>
+        <button
+          class="cyber-btn"
+          style="background: rgba(254, 83, 187, 0.2)"
+          onclick="loadGame(event)"
+        >
+          📂 读取进度 (LOAD)
+        </button>
+      </div>
+      <button
+        class="cyber-btn"
+        onclick="returnToHome(event)"
+        ontouchstart="returnToHome(event)"
+        style="background: rgba(255, 255, 255, 0.1); width: 100%"
+      >
+        退出并返回主页
+      </button>
+    </div>
+
+    <div id="upgrade-menu" class="panel hidden">
+      <h1 style="color: #fff">认知升维</h1>
+      <p style="margin-bottom: 20px; color: #ccc">请选择你的进化方向：</p>
+      <div id="upgrade-options"></div>
+    </div>
+
+    <div id="game-over-menu" class="panel hidden">
+      <h1 id="end-title" style="color: var(--red)">已被蒸馏</h1>
+      <div id="end-emoji" style="font-size: 55px; margin-bottom: 15px">🤖</div>
+      <p class="lore" id="end-desc" style="text-align: center; color: #fff">
+        思考能力归零。你已失去自我，沦为大模型的语料。
+      </p>
+      <div
+        style="
+          margin-bottom: 25px;
+          font-size: 18px;
+          color: #ddd;
+          background: rgba(0, 0, 0, 0.5);
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid #444;
+        "
+      >
+        最终阶段:
+        <span
+          id="final-phase"
+          style="color: var(--pink); font-weight: bold; font-size: 22px"
+          >1</span
+        ><br /><br />
+        存活时间:
+        <span id="final-time" style="color: var(--yellow); font-weight: bold"
+          >00:00</span
+        ><br />
+        清理数量:
+        <span id="final-score" style="color: var(--cyan); font-weight: bold"
+          >0</span
+        >
+      </div>
+      <div style="display: flex; gap: 10px">
+        <button
+          class="cyber-btn"
+          id="restart-btn"
+          onclick="initGame(event)"
+          ontouchstart="initGame(event)"
+        >
+          重新连接 (RESTART)
+        </button>
+        <button
+          class="cyber-btn"
+          id="home-btn"
+          onclick="returnToHome(event)"
+          ontouchstart="returnToHome(event)"
+          style="background: rgba(255, 255, 255, 0.1)"
+        >
+          返回主页 (HOME)
+        </button>
+      </div>
+    </div>
+
+
+  </body>
+</html>

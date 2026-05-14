@@ -1,6 +1,9 @@
 /target
-.db
-
+node_modules/
+npm-debug.log*
+/.
+/leaderboard.db-wal
+/cyber-ai
+/leaderboard.db
 /leaderboard.db-shm
 /leaderboard.db-wal
-/leaderboard.db
