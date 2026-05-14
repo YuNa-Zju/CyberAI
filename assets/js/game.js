@@ -143,6 +143,7 @@
       const bossHpFill = document.getElementById("boss-hp-fill");
       const bossWarning = document.getElementById("boss-warning");
       const bossNameText = document.getElementById("boss-name");
+      const api = window.CyberApi;
 
       let animationId;
       let gameState = "MENU";
@@ -154,9 +155,10 @@
       let currentPhase = 1;
       let bossActive = false,
         cutsceneTimer = 0;
-      let nextBossSpawnTime = 90;
+      let nextBossSpawnTime = 75;
       let nextBuffSpawnTime = 15;
       let nextStoneSpawnTime = 120;
+      let nextBugRainTime = 300;
 
       let player;
       let pets = [],
@@ -170,10 +172,11 @@
         items = [],
         obstacles = [],
         floatingTexts = [],
+        bugDrops = [],
+        bugZones = [],
         traps = [],
         tempTraps = [];
       let theBoss = null;
-      let gcEntity = null;
 
       const keys = {
         w: false,
@@ -255,6 +258,7 @@
           nextBossSpawnTime,
           nextBuffSpawnTime,
           nextStoneSpawnTime,
+          nextBugRainTime,
         };
         localStorage.setItem("cyber_save", JSON.stringify(state));
         if (!silent) alert("💾 游戏进度已成功保存！");
@@ -282,8 +286,7 @@
           nextBossSpawnTime = state.nextBossSpawnTime;
           nextBuffSpawnTime = state.nextBuffSpawnTime;
           nextStoneSpawnTime = state.nextStoneSpawnTime;
-
-          if (currentPhase < 5) gcEntity = null;
+          nextBugRainTime = state.nextBugRainTime || gameTime + 10;
 
           updateHUD();
           alert("📂 进度读取成功，准备战斗！");
@@ -603,51 +606,80 @@
         }
       }
 
-      class GarbageCollector {
+      class BugDrop {
+        constructor(x, targetY) {
+          this.x = x;
+          this.y = targetY - 650;
+          this.targetY = targetY;
+          this.radius = 20;
+          this.vy = 11 + Math.random() * 4;
+          this.spin = (Math.random() - 0.5) * 0.35;
+          this.angle = Math.random() * Math.PI * 2;
+          this.isDead = false;
+        }
+        draw() {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
+          drawEmoji("🐛", 0, 0, 34);
+          ctx.restore();
+        }
+        update() {
+          this.y += this.vy;
+          this.angle += this.spin;
+          if (this.y >= this.targetY) {
+            this.isDead = true;
+            bugZones.push(new BugZone(this.x, this.targetY));
+            floatingTexts.push(
+              new FloatingText("线上怎么又有虫啊！🐛", this.x, this.targetY - 40, COLORS.green, true),
+            );
+          }
+        }
+      }
+
+      class BugZone {
         constructor(x, y) {
           this.x = x;
           this.y = y;
-          this.radius = 180;
+          this.radius = 95;
+          this.life = 360;
+          this.tick = 0;
+          this.isDead = false;
         }
         draw() {
-          drawEmoji("🗑️", this.x, this.y, 220);
+          const alpha = Math.max(0, this.life / 360);
+          ctx.globalAlpha = alpha;
           ctx.beginPath();
           ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(255, 51, 51, 0.8)";
-          ctx.lineWidth = 8;
-          ctx.setLineDash([20, 20]);
+          ctx.fillStyle = "rgba(0, 255, 65, 0.12)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(0, 255, 65, 0.65)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 10]);
           ctx.stroke();
           ctx.setLineDash([]);
+          drawEmoji("🌀", this.x - 24, this.y, 30);
+          drawEmoji("🐛", this.x + 18, this.y - 8, 28);
+          drawEmoji("💥", this.x + 4, this.y + 22, 24);
+          ctx.globalAlpha = 1;
         }
         update() {
-          const speed = 0.6 + (currentPhase - 5) * 0.1;
-          const angle = Math.atan2(player.y - this.y, player.x - this.x);
-          this.x += Math.cos(angle) * speed;
-          this.y += Math.sin(angle) * speed;
-
+          this.life--;
+          if (this.life <= 0) {
+            this.isDead = true;
+            return;
+          }
           if (
             distSq(player.x, player.y, this.x, this.y) <
-            Math.pow(this.radius - 30 + player.radius, 2)
+            (this.radius + player.radius) * (this.radius + player.radius)
           ) {
-            player.takeDamage(50);
-          }
-
-          const rSq = this.radius * this.radius;
-          const wipe = (arr) => {
-            for (let i = 0; i < arr.length; i++) {
-              if (distSq(arr[i].x, arr[i].y, this.x, this.y) < rSq)
-                arr[i].isDead = true;
+            player.inBugZone = true;
+            if (this.tick <= 0) {
+              player.takeDamage(3);
+              this.tick = 40;
             }
-          };
-          wipe(obstacles);
-          wipe(enemies);
-          wipe(items);
-          wipe(expGems);
-          wipe(enemyBullets);
-          wipe(bullets);
-          wipe(traps);
-          wipe(tempTraps);
-          wipe(vomitBullets);
+          }
+          if (this.tick > 0) this.tick--;
         }
       }
 
@@ -793,6 +825,7 @@
           this.invincibleTimer = 0;
           this.damageBuffTimer = 0;
           this.inTrap = false;
+          this.inBugZone = false;
           this.trapTick = 0;
 
           this.shieldBuffTimer = 0;
@@ -939,6 +972,7 @@
               this.trapTick = 30;
             } else this.trapTick--;
           } else this.trapTick = 0;
+          if (this.inBugZone) currentSpeed *= 0.72;
 
           this.x += dx * currentSpeed;
           this.y += dy * currentSpeed;
@@ -1749,9 +1783,10 @@
           player = new Player();
           gameTime = 0;
           currentPhase = 1;
-          nextBossSpawnTime = 90;
-          nextBuffSpawnTime = 15;
-          nextStoneSpawnTime = 120;
+          nextBossSpawnTime = 75;
+          nextBuffSpawnTime = 10;
+          nextStoneSpawnTime = 105;
+          nextBugRainTime = 300;
         }
 
         pets = [];
@@ -1765,10 +1800,11 @@
         items = [];
         obstacles = [];
         floatingTexts = [];
+        bugDrops = [];
+        bugZones = [];
         traps = [];
         tempTraps = [];
         theBoss = null;
-        gcEntity = null;
 
         lastTime = performance.now();
         accumulator = 0;
@@ -1832,10 +1868,13 @@
       // ================= 排行榜调用逻辑 =================
       async function fetchLeaderboard() {
         const list = document.getElementById("leaderboard-list");
+        if (!api) {
+          list.innerHTML =
+            '<li style="text-align:center; color:var(--red); margin-top:20px;">排行榜模块加载失败</li>';
+          return;
+        }
         try {
-          const response = await fetch("/api/scores");
-          if (!response.ok) throw new Error("网络异常");
-          let data = await response.json();
+          let data = await api.getScores();
 
           const uniqueData = {};
           data.forEach((record) => {
@@ -1871,7 +1910,7 @@
         } catch (e) {
           console.error("排行榜拉取失败:", e);
           list.innerHTML =
-            '<li style="text-align:center; color:var(--red); margin-top:20px;">无法连接到排行榜服务器</li>';
+            `<li style="text-align:center; color:var(--red); margin-top:20px;">${e?.message || "无法连接到排行榜服务器"}</li>`;
         }
       }
 
@@ -1887,30 +1926,44 @@
           if (!name) return;
           localStorage.setItem("playerName", name);
 
+          if (!api) {
+            alert("❌ 成绩提交失败，排行榜模块加载失败。");
+            return;
+          }
+
           try {
-            const res = await fetch("/api/scores", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                player_name: name,
-                score: score,
-                phase: phase,
-              }),
+            await api.submitScore({
+              player_name: name,
+              score: score,
+              phase: phase,
             });
-            if (res.ok) {
-              alert("✅ 成绩记录成功！");
-              fetchLeaderboard();
-            } else {
-              alert("❌ 成绩提交失败，请检查网络。");
-            }
+            alert("✅ 成绩记录成功！");
+            fetchLeaderboard();
           } catch (e) {
-            alert("❌ 成绩提交失败，无法连接到后端服务器。");
+            alert(`❌ 成绩提交失败，${e?.message || "无法连接到后端服务器。"}`);
             console.error(e);
           }
         }, 500);
       }
 
       window.addEventListener("DOMContentLoaded", fetchLeaderboard);
+
+      function spawnBugRain() {
+        const count = Math.min(8, 3 + Math.floor((currentPhase - 5) * 0.8));
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 160 + Math.random() * 520;
+          bugDrops.push(
+            new BugDrop(
+              player.x + Math.cos(angle) * dist,
+              player.y + Math.sin(angle) * dist,
+            ),
+          );
+        }
+        floatingTexts.push(
+          new FloatingText("警告：Bug 开香槟了 🐛🍾", player.x, player.y - 70, COLORS.green, true),
+        );
+      }
 
       function spawnEnemy(camX, camY) {
         if (bossActive) return;
@@ -1921,10 +1974,10 @@
         if (maxEnemies > 120) maxEnemies = 120;
         if (enemies.length >= maxEnemies) return;
 
-        let baseInterval = 40;
+        let baseInterval = 34;
         let spawnInterval =
-          baseInterval / diffScale - Math.floor(gameTime / 10);
-        if (spawnInterval < 10) spawnInterval = 10;
+          baseInterval / diffScale - Math.floor(gameTime / 9);
+        if (spawnInterval < 8) spawnInterval = 8;
         if (Math.random() > 1 / spawnInterval) return;
 
         const margin = 100;
@@ -2036,9 +2089,10 @@
 
         ctx.save();
         ctx.translate(-drawCamX, -drawCamY);
-        if (gcEntity) gcEntity.draw();
         traps.forEach((t) => t.draw());
         tempTraps.forEach((t) => t.draw());
+        bugZones.forEach((bz) => bz.draw());
+        bugDrops.forEach((bd) => bd.draw());
         obstacles.forEach((obs) => obs.draw());
         items.forEach((item) => item.draw());
         expGems.forEach((gem) => gem.draw());
@@ -2161,7 +2215,8 @@
             currentPhase++;
             bossActive = false;
             theBoss = null;
-            nextBossSpawnTime = gameTime + 90;
+            nextBossSpawnTime = gameTime + 75;
+            if (currentPhase >= 5) nextBugRainTime = gameTime + 8;
             let phaseText = document.createElement("div");
             phaseText.className = "phase-announce";
             phaseText.innerHTML = `<span>警报暂时解除...</span><br><br><span style="color:var(--pink)">突破进入 阶段 ${currentPhase}</span>`;
@@ -2180,23 +2235,14 @@
           gameTime += TIME_STEP;
           timeDisplay.innerText = formatTime(gameTime);
 
-          if (currentPhase >= 5 && !gcEntity) {
-            gcEntity = new GarbageCollector(player.x - 1500, player.y);
-            floatingTexts.push(
-              new FloatingText(
-                "严重警告：底层垃圾回收进程已启动！",
-                player.x,
-                player.y - 80,
-                COLORS.red,
-                true,
-              ),
-            );
+          if (currentPhase >= 5 && gameTime >= nextBugRainTime) {
+            spawnBugRain();
+            nextBugRainTime = gameTime + Math.max(18, 34 - currentPhase * 2);
           }
-          if (gcEntity) gcEntity.update();
 
           if (gameTime >= nextBuffSpawnTime) {
             spawnMapBuff();
-            nextBuffSpawnTime = gameTime + 45;
+            nextBuffSpawnTime = gameTime + 36;
           }
 
           if (gameTime >= nextStoneSpawnTime) {
@@ -2208,7 +2254,7 @@
                 player.y + Math.sin(angle) * dist,
               ),
             );
-            nextStoneSpawnTime = gameTime + 180;
+            nextStoneSpawnTime = gameTime + 150;
             floatingTexts.push(
               new FloatingText(
                 "高维武器降临！",
@@ -2235,8 +2281,11 @@
           updateChunks();
 
           player.inTrap = false;
+          player.inBugZone = false;
           traps.forEach((t) => t.update());
           tempTraps.forEach((t) => t.update());
+          bugZones.forEach((bz) => bz.update());
+          bugDrops.forEach((bd) => bd.update());
           curlingStones.forEach((cs) => cs.update());
 
           player.update();
@@ -2451,6 +2500,8 @@
 
           // 批量回收：原地 compact，避免每帧 filter/slice 制造临时数组。
           compactLive(tempTraps);
+          compactLive(bugZones);
+          compactLive(bugDrops);
           compactLive(items);
           compactLive(expGems);
           compactLive(vomitBullets);

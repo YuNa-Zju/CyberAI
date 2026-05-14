@@ -5,6 +5,11 @@ use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile}; // 依然保留你的前端服务
 
+#[derive(Serialize)]
+struct HealthResponse {
+    ok: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 struct ScoreRecord {
     player_name: String,
@@ -25,6 +30,7 @@ async fn main() {
         .expect("数据库迁移执行失败");
 
     let app = Router::new()
+        .route("/api/health", get(health))
         .route("/api/scores", get(get_scores).post(add_score))
         .nest_service("/assets", ServeDir::new("dist/assets"))
         .fallback_service(ServeFile::new("dist/index.html"))
@@ -36,6 +42,10 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn health() -> Json<HealthResponse> {
+    Json(HealthResponse { ok: true })
 }
 
 async fn get_scores(
