@@ -32,6 +32,99 @@
         slime: "#6bba2f",
       };
 
+      const emojiTextureCache = new Map();
+      function getEmojiTexture(emoji, size) {
+        const key = `${emoji}:${size}`;
+        let texture = emojiTextureCache.get(key);
+        if (texture) return texture;
+
+        const padding = Math.ceil(size * 0.35);
+        const bitmap = document.createElement("canvas");
+        bitmap.width = size + padding * 2;
+        bitmap.height = size + padding * 2;
+        const bitmapCtx = bitmap.getContext("2d");
+        bitmapCtx.font = `${size}px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', Arial`;
+        bitmapCtx.textAlign = "center";
+        bitmapCtx.textBaseline = "middle";
+        bitmapCtx.fillStyle = COLORS.white;
+        bitmapCtx.fillText(emoji, bitmap.width / 2, bitmap.height / 2);
+        texture = {
+          bitmap,
+          halfWidth: bitmap.width / 2,
+          halfHeight: bitmap.height / 2,
+        };
+        emojiTextureCache.set(key, texture);
+        return texture;
+      }
+
+      function drawEmoji(emoji, x, y, size) {
+        const texture = getEmojiTexture(emoji, size);
+        ctx.drawImage(
+          texture.bitmap,
+          x - texture.halfWidth,
+          y - texture.halfHeight,
+        );
+      }
+
+      function compactLive(list) {
+        let write = 0;
+        for (let read = 0; read < list.length; read++) {
+          const item = list[read];
+          if (!item.isDead) list[write++] = item;
+        }
+        list.length = write;
+        return list;
+      }
+
+      class SpatialGrid {
+        constructor(size) {
+          this.size = size;
+          this.cells = new Map();
+        }
+        clear() {
+          this.cells.clear();
+        }
+        key(x, y) {
+          return `${Math.floor(x / this.size)},${Math.floor(y / this.size)}`;
+        }
+        add(obj) {
+          const key = this.key(obj.x, obj.y);
+          let cell = this.cells.get(key);
+          if (!cell) {
+            cell = [];
+            this.cells.set(key, cell);
+          }
+          cell.push(obj);
+        }
+        rebuild(list) {
+          this.clear();
+          for (let i = 0; i < list.length; i++) {
+            const obj = list[i];
+            if (!obj.isDead) this.add(obj);
+          }
+        }
+        query(x, y, radius, out) {
+          out.length = 0;
+          const minX = Math.floor((x - radius) / this.size);
+          const maxX = Math.floor((x + radius) / this.size);
+          const minY = Math.floor((y - radius) / this.size);
+          const maxY = Math.floor((y + radius) / this.size);
+          for (let gx = minX; gx <= maxX; gx++) {
+            for (let gy = minY; gy <= maxY; gy++) {
+              const cell = this.cells.get(`${gx},${gy}`);
+              if (!cell) continue;
+              for (let i = 0; i < cell.length; i++) out.push(cell[i]);
+            }
+          }
+          return out;
+        }
+      }
+
+      const enemyGrid = new SpatialGrid(180);
+      const obstacleGrid = new SpatialGrid(220);
+      const queryBuffer = [];
+      const obstacleQueryBuffer = [];
+
       const mainMenu = document.getElementById("main-menu");
       const upgradeMenu = document.getElementById("upgrade-menu");
       const gameOverMenu = document.getElementById("game-over-menu");
@@ -357,11 +450,7 @@
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.lineWidth = 1;
-          ctx.font = "26px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("☣️", this.x, this.y);
+          drawEmoji("☣️", this.x, this.y, 26);
           if (this.isTemp) ctx.globalAlpha = 1.0;
         }
         update() {
@@ -387,11 +476,7 @@
           this.isDead = false;
         }
         draw() {
-          ctx.font = "35px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🧮", this.x, this.y);
+          drawEmoji("🧮", this.x, this.y, 35);
           if (this.hp < this.maxHp) {
             ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
             ctx.fillRect(this.x - 15, this.y - 22, 30, 4);
@@ -423,11 +508,7 @@
         }
         draw() {
           this.floatOffset = Math.sin(gameTime * 4) * 6;
-          ctx.font = "28px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("💪", this.x, this.y + this.floatOffset);
+          drawEmoji("💪", this.x, this.y + this.floatOffset, 28);
           ctx.beginPath();
           ctx.arc(
             this.x,
@@ -453,11 +534,7 @@
         }
         draw() {
           this.floatOffset = Math.sin(gameTime * 4) * 6;
-          ctx.font = "28px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🛡️", this.x, this.y + this.floatOffset);
+          drawEmoji("🛡️", this.x, this.y + this.floatOffset, 28);
           ctx.beginPath();
           ctx.arc(
             this.x,
@@ -483,11 +560,7 @@
         }
         draw() {
           this.floatOffset = Math.sin(gameTime * 2) * 8;
-          ctx.font = "35px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🥌", this.x, this.y + this.floatOffset);
+          drawEmoji("🥌", this.x, this.y + this.floatOffset, 35);
           ctx.beginPath();
           ctx.arc(
             this.x,
@@ -518,11 +591,7 @@
           ctx.save();
           ctx.translate(this.x, this.y);
           ctx.rotate(this.angle);
-          ctx.font = "60px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🥌", 0, 0);
+          drawEmoji("🥌", 0, 0, 60);
           ctx.restore();
         }
         update() {
@@ -541,11 +610,7 @@
           this.radius = 180;
         }
         draw() {
-          ctx.font = "220px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🗑️", this.x, this.y);
+          drawEmoji("🗑️", this.x, this.y, 220);
           ctx.beginPath();
           ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
           ctx.strokeStyle = "rgba(255, 51, 51, 0.8)";
@@ -597,11 +662,7 @@
         }
         draw() {
           this.floatOffset = Math.sin(gameTime * 3) * 5;
-          ctx.font = "24px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("❤️", this.x, this.y + this.floatOffset);
+          drawEmoji("❤️", this.x, this.y + this.floatOffset, 24);
         }
       }
 
@@ -618,11 +679,7 @@
           this.travelSq = distSq(x, y, targetX, targetY);
         }
         draw() {
-          ctx.font = "20px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🤮", this.x, this.y);
+          drawEmoji("🤮", this.x, this.y, 20);
         }
         update() {
           this.x += this.vx;
@@ -821,11 +878,7 @@
             ctx.lineWidth = 1;
           }
 
-          ctx.font = "34px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🥸", this.x, this.y + 2);
+          drawEmoji("🥸", this.x, this.y + 2, 34);
           if (this.damageBuffTimer > 0) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius + 15, 0, Math.PI * 2);
@@ -1006,13 +1059,8 @@
           this.bulletSpeed = 12;
         }
         draw() {
-          ctx.font = "20px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
-          ctx.fillText("🤖", this.x, this.y + 2);
-          ctx.font = "10px 'Segoe UI Emoji', Arial";
-          ctx.fillText("💚", this.x + 8, this.y - 10);
+          drawEmoji("🤖", this.x, this.y + 2, 20);
+          drawEmoji("💚", this.x + 8, this.y - 10, 10);
         }
         update() {
           const targetX = this.owner.x + this.offsetX;
@@ -1120,13 +1168,9 @@
           this.knockbackY = 0;
         }
         draw() {
-          ctx.font = `${this.radius * 1.8}px 'Segoe UI Emoji', Arial`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
           let emoji = "🤖";
           if (this.type === 4) emoji = "🤢";
-          ctx.fillText(emoji, this.x, this.y + 4);
+          drawEmoji(emoji, this.x, this.y + 4, this.radius * 1.8);
 
           if (this.hp < this.maxHp) {
             ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -1251,12 +1295,8 @@
           bossNameText.innerText = names[this.type];
         }
         draw() {
-          ctx.font = "120px 'Segoe UI Emoji', Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = COLORS.white;
           let emj = this.type === 1 ? "🐱" : this.type === 2 ? "🦞" : "🤖";
-          ctx.fillText(emj, this.x, this.y + 10);
+          drawEmoji(emj, this.x, this.y + 10, 120);
           ctx.beginPath();
           ctx.arc(
             this.x,
@@ -2274,6 +2314,8 @@
           }
 
           vomitBullets.forEach((vb) => vb.update());
+          enemyGrid.rebuild(enemies);
+          obstacleGrid.rebuild(obstacles);
 
           enemyBullets.forEach((eb) => {
             eb.update();
@@ -2281,7 +2323,13 @@
               eb.isDead = true;
             else {
               let hitObstacle = false;
-              for (let obs of obstacles) {
+              const nearbyObstacles = obstacleGrid.query(
+                eb.x,
+                eb.y,
+                eb.radius + 40,
+                obstacleQueryBuffer,
+              );
+              for (let obs of nearbyObstacles) {
                 let dx = eb.x - obs.x;
                 let dy = eb.y - obs.y;
                 let maxDist = eb.radius + obs.radius;
@@ -2313,7 +2361,13 @@
             }
 
             let hitObstacle = false;
-            for (let obs of obstacles) {
+            const nearbyObstacles = obstacleGrid.query(
+              b.x,
+              b.y,
+              b.radius + 50,
+              obstacleQueryBuffer,
+            );
+            for (let obs of nearbyObstacles) {
               let dx = b.x - obs.x;
               let dy = b.y - obs.y;
               let maxDist = b.radius + obs.radius;
@@ -2351,7 +2405,13 @@
               }
             }
 
-            for (let e of enemies) {
+            const nearbyEnemies = enemyGrid.query(
+              b.x,
+              b.y,
+              b.radius + 70,
+              queryBuffer,
+            );
+            for (let e of nearbyEnemies) {
               if (b.hitEnemies.has(e) || e.isDead) continue;
               let dx = b.x - e.x;
               let dy = b.y - e.y;
@@ -2389,23 +2449,21 @@
           particles.forEach((p) => p.update());
           floatingTexts.forEach((ft) => ft.update());
 
-          // 批量回收
-          tempTraps = tempTraps.filter((t) => !t.isDead);
-          items = items.filter((i) => !i.isDead);
-          expGems = expGems.filter((g) => !g.isDead);
-          vomitBullets = vomitBullets.filter((v) => !v.isDead);
-          enemyBullets = enemyBullets.filter((eb) => !eb.isDead);
-          bullets = bullets.filter((b) => !b.isDead);
-          enemies = enemies.filter((e) => !e.isDead);
-          particles = particles.filter((p) => !p.isDead);
-          floatingTexts = floatingTexts.filter((ft) => !ft.isDead);
-          obstacles = obstacles.filter((o) => !o.isDead);
-          curlingStones = curlingStones.filter((cs) => !cs.isDead);
+          // 批量回收：原地 compact，避免每帧 filter/slice 制造临时数组。
+          compactLive(tempTraps);
+          compactLive(items);
+          compactLive(expGems);
+          compactLive(vomitBullets);
+          compactLive(enemyBullets);
+          compactLive(bullets);
+          compactLive(enemies);
+          compactLive(particles);
+          compactLive(floatingTexts);
+          compactLive(obstacles);
+          compactLive(curlingStones);
 
-          if (particles.length > 250)
-            particles = particles.slice(particles.length - 250);
-          if (expGems.length > 200)
-            expGems = expGems.slice(expGems.length - 200);
+          if (particles.length > 250) particles.splice(0, particles.length - 250);
+          if (expGems.length > 200) expGems.splice(0, expGems.length - 200);
 
           accumulator -= TIME_STEP;
         }
@@ -2502,3 +2560,10 @@
       document
         .getElementById("restart-btn")
         .addEventListener("click", initGame);
+
+      window.initGame = initGame;
+      window.saveGame = saveGame;
+      window.loadGame = loadGame;
+      window.togglePause = togglePause;
+      window.triggerUltBtn = triggerUltBtn;
+      window.returnToHome = returnToHome;

@@ -26,8 +26,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/api/scores", get(get_scores).post(add_score))
-        .nest_service("/assets", ServeDir::new("assets"))
-        .fallback_service(ServeFile::new("index.html")) // 保持匹配你的 index.html
+        .nest_service("/assets", ServeDir::new("dist/assets"))
+        .fallback_service(ServeFile::new("dist/index.html"))
         .layer(CorsLayer::permissive())
         .with_state(pool);
 

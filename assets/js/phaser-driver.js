@@ -15,22 +15,27 @@
   function createPhaserLoop() {
     if (!window.Phaser) return null;
 
-    return new Phaser.Game({
-      type: Phaser.HEADLESS,
-      width: 1,
-      height: 1,
-      banner: false,
-      audio: { noAudio: true },
-      fps: {
-        target: 60,
-        forceSetTimeOut: false,
-      },
-      scene: {
-        update(time) {
-          runFrame(time);
+    try {
+      return new Phaser.Game({
+        type: Phaser.HEADLESS || Phaser.CANVAS,
+        width: 1,
+        height: 1,
+        banner: false,
+        audio: { noAudio: true },
+        fps: {
+          target: 60,
+          forceSetTimeOut: false,
         },
-      },
-    });
+        scene: {
+          update(time) {
+            runFrame(time);
+          },
+        },
+      });
+    } catch (err) {
+      console.warn("Phaser frame driver unavailable; falling back to rAF.", err);
+      return null;
+    }
   }
 
   const phaserLoop = createPhaserLoop();
