@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-use tower_http::services::ServeFile; // 依然保留你的单文件前端服务
+use tower_http::services::{ServeDir, ServeFile}; // 依然保留你的前端服务
 
 #[derive(Serialize, Deserialize)]
 struct ScoreRecord {
@@ -26,6 +26,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/api/scores", get(get_scores).post(add_score))
+        .nest_service("/assets", ServeDir::new("assets"))
         .fallback_service(ServeFile::new("index.html")) // 保持匹配你的 index.html
         .layer(CorsLayer::permissive())
         .with_state(pool);
