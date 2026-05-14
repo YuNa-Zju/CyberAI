@@ -1883,6 +1883,7 @@
       // ================= 排行榜调用逻辑 =================
       async function fetchLeaderboard() {
         const list = document.getElementById("leaderboard-list");
+        hideBuildTooltip();
         if (!api) {
           list.innerHTML =
             '<li style="text-align:center; color:var(--red); margin-top:20px;">排行榜模块加载失败</li>';
@@ -1911,7 +1912,7 @@
           data.forEach((record, index) => {
             const li = document.createElement("li");
             li.className = "leaderboard-item";
-            let rank =
+            const rank =
               index === 0
                 ? "🥇"
                 : index === 1
@@ -1919,8 +1920,23 @@
                   : index === 2
                     ? "🥉"
                     : `NO.${index + 1}`;
-            li.title = formatBuildHistory(record.build_history);
-            li.innerHTML = `<span>${rank} ${record.player_name || "匿名"}</span><span>阶段${record.phase || 1} / ${record.score || 0}分</span>`;
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "leaderboard-player-name";
+            nameSpan.textContent = `${rank} ${record.player_name || "匿名"}`;
+            nameSpan.addEventListener("mouseenter", () =>
+              showBuildTooltip(record, nameSpan),
+            );
+            nameSpan.addEventListener("mousemove", () =>
+              positionBuildTooltip(nameSpan),
+            );
+            nameSpan.addEventListener("mouseleave", hideBuildTooltip);
+
+            const scoreSpan = document.createElement("span");
+            scoreSpan.textContent = `阶段${record.phase || 1} / ${record.score || 0}分`;
+
+            li.appendChild(nameSpan);
+            li.appendChild(scoreSpan);
             list.appendChild(li);
           });
         } catch (e) {
@@ -2062,7 +2078,7 @@
         return `${m}:${s}`;
       }
 
-      function formatBuildHistory(rawHistory) {
+      function parseBuildHistory(rawHistory) {
         let history = rawHistory;
         if (typeof rawHistory === "string") {
           try {
@@ -2071,19 +2087,118 @@
             history = [];
           }
         }
+        return Array.isArray(history) ? history : [];
+      }
+
+      function formatBuildHistory(rawHistory) {
+        const history = parseBuildHistory(rawHistory);
         if (!Array.isArray(history) || history.length === 0) {
           return "暂无加点记录";
         }
         return history
           .map((item, index) => {
-            const level = item.level || index + 2;
-            const phase = item.phase || 1;
-            const time = item.time || "00:00";
+            const level = escapeHtml(item.level || index + 2);
+            const phase = escapeHtml(item.phase || 1);
+            const time = escapeHtml(item.time || "00:00");
             const icon = item.icon || "✨";
             const title = item.title || "神秘加点";
             return `LV${level} 阶段${phase} ${time} ${icon} ${title}`;
           })
           .join("\n");
+      }
+
+      function getBuildTooltip() {
+        let tooltip = document.getElementById("build-tooltip");
+        if (!tooltip) {
+          tooltip = document.createElement("div");
+          tooltip.id = "build-tooltip";
+          tooltip.className = "build-tooltip hidden";
+          document.body.appendChild(tooltip);
+        }
+        return tooltip;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function showBuildTooltip(record, anchorEl) {
+        const tooltip = getBuildTooltip();
+        const history = parseBuildHistory(record.build_history);
+        const playerName = escapeHtml(record.player_name || "匿名");
+        const nodes = history
+          .map((item, index) => {
+            const level = item.level || index + 2;
+            const phase = item.phase || 1;
+            const time = item.time || "00:00";
+            const icon = escapeHtml(item.icon || "✨");
+            const title = escapeHtml(item.title || "神秘加点");
+            return `
+              <div class="build-node">
+                <div class="build-node-dot">${icon}</div>
+                <div class="build-node-body">
+                  <div class="build-node-title">${title}</div>
+                  <div class="build-node-meta">LV${level} / 阶段${phase} / ${time}</div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+
+        tooltip.innerHTML = `
+          <div class="build-tooltip-header">
+            <span>🧬 ${playerName}</span>
+            <small>加点图谱</small>
+          </div>
+          <div class="build-map ${
+            history.length === 0 ? "build-map-empty" : ""
+          }">
+            ${
+              history.length === 0
+                ? '<div class="build-empty">暂无加点记录 🫥</div>'
+                : nodes
+            }
+          </div>
+        `;
+        tooltip.classList.remove("hidden");
+        positionBuildTooltip(anchorEl);
+      }
+
+      function positionBuildTooltip(anchorEl) {
+        const tooltip = getBuildTooltip();
+        if (tooltip.classList.contains("hidden")) return;
+
+        const margin = 12;
+        const anchorRect = anchorEl.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        let left = anchorRect.right + margin;
+        let top = anchorRect.top + anchorRect.height / 2 - tooltipRect.height / 2;
+
+        if (left + tooltipRect.width + margin > window.innerWidth) {
+          left = anchorRect.left - tooltipRect.width - margin;
+        }
+        if (left < margin) {
+          left = Math.min(margin, window.innerWidth - tooltipRect.width - margin);
+        }
+        if (top + tooltipRect.height + margin > window.innerHeight) {
+          top = window.innerHeight - tooltipRect.height - margin;
+        }
+        if (top < margin) {
+          top = margin;
+        }
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      }
+
+      function hideBuildTooltip() {
+        const tooltip = getBuildTooltip();
+        tooltip.classList.add("hidden");
       }
 
       /* ======================================================
