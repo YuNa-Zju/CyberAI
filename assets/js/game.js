@@ -177,6 +177,7 @@
         traps = [],
         tempTraps = [];
       let buildHistory = [];
+      let buildTooltipHideTimer = null;
       let theBoss = null;
 
       const keys = {
@@ -1930,7 +1931,7 @@
             nameSpan.addEventListener("mousemove", () =>
               positionBuildTooltip(nameSpan),
             );
-            nameSpan.addEventListener("mouseleave", hideBuildTooltip);
+            nameSpan.addEventListener("mouseleave", scheduleBuildTooltipHide);
 
             const scoreSpan = document.createElement("span");
             scoreSpan.textContent = `阶段${record.phase || 1} / ${record.score || 0}分`;
@@ -2113,6 +2114,8 @@
           tooltip = document.createElement("div");
           tooltip.id = "build-tooltip";
           tooltip.className = "build-tooltip hidden";
+          tooltip.addEventListener("mouseenter", cancelBuildTooltipHide);
+          tooltip.addEventListener("mouseleave", scheduleBuildTooltipHide);
           document.body.appendChild(tooltip);
         }
         return tooltip;
@@ -2128,6 +2131,7 @@
       }
 
       function showBuildTooltip(record, anchorEl) {
+        cancelBuildTooltipHide();
         const tooltip = getBuildTooltip();
         const history = parseBuildHistory(record.build_history);
         const playerName = escapeHtml(record.player_name || "匿名");
@@ -2199,6 +2203,21 @@
       function hideBuildTooltip() {
         const tooltip = getBuildTooltip();
         tooltip.classList.add("hidden");
+      }
+
+      function scheduleBuildTooltipHide() {
+        cancelBuildTooltipHide();
+        buildTooltipHideTimer = setTimeout(() => {
+          hideBuildTooltip();
+          buildTooltipHideTimer = null;
+        }, 160);
+      }
+
+      function cancelBuildTooltipHide() {
+        if (buildTooltipHideTimer) {
+          clearTimeout(buildTooltipHideTimer);
+          buildTooltipHideTimer = null;
+        }
       }
 
       /* ======================================================

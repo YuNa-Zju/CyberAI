@@ -7,3 +7,4 @@ npm-debug.log*
 /leaderboard.db
 /leaderboard.db-shm
 /leaderboard.db-wal
+/leaderboard_bak.db
